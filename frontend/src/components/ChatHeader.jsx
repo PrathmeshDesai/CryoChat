@@ -1,9 +1,9 @@
 import { X } from "lucide-react";
-import { useAuthStore } from "../store/useAuthStore.js"
+import { useAuthStore } from "../store/useAuthStore.js";
 import { useChatStore } from "../store/useChatStore.js";
 
 const ChatHeader = () => {
-  const { selectedUser, setSelectedUser } = useChatStore();
+  const { selectedUser, setSelectedUser, isTyping } = useChatStore();
   const { onlineUsers } = useAuthStore();
 
   if (!selectedUser) return null;
@@ -27,8 +27,14 @@ const ChatHeader = () => {
 
           <div>
             <h3 className="font-semibold text-base-content">{selectedUser?.fullName}</h3>
-            <p className="text-xs text-base-content/70">
-              {isOnline ? "Online" : "Offline"}
+            <p className="text-xs h-4 text-primary italic">
+              {isTyping ? (
+                <span className="animate-pulse">typing...</span>
+              ) : isOnline ? (
+                <span className="text-base-content/70 not-italic">Online</span>
+              ) : (
+                <span className="text-base-content/70 not-italic">Offline</span>
+              )}
             </p>
           </div>
         </div>

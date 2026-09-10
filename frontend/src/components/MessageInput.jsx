@@ -1,16 +1,38 @@
 import { useState } from "react";
 import { useChatStore } from "../store/useChatStore";
+import { useAuthStore } from "../store/useAuthStore";
 import { Image, Send, X, Clock } from "lucide-react";
 import toast from "react-hot-toast";
+
+let typingTimeout = null;
 
 const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [timer, setTimer] = useState("0");
-  const { sendMessage } = useChatStore();
+  const { sendMessage, selectedUser } = useChatStore();
+  const { socket } = useAuthStore();
+
+  const handleTextChange = (e) => {
+    const value = e.target.value;
+    setText(value);
+
+    const selectedUserId = selectedUser?._id || selectedUser?.id;
+    if (!socket || !selectedUserId) return;
+
+    // Emit typing start
+    socket.emit("typing", { receiverId: selectedUserId });
+
+    // Clear existing timeout and set auto stop typing after 2 seconds
+    if (typingTimeout) clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      socket.emit("stopTyping", { receiverId: selectedUserId });
+    }, 2000);
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
+    if (!file) return;
     if (!file.type.startsWith("image/")) return toast.error("Please select an image file");
     const reader = new FileReader();
     reader.onloadend = () => setImagePreview(reader.result);
@@ -20,6 +42,13 @@ const MessageInput = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!text.trim() && !imagePreview) return;
+
+    // Stop typing indicator immediately upon sending
+    const selectedUserId = selectedUser?._id || selectedUser?.id;
+    if (socket && selectedUserId) {
+      if (typingTimeout) clearTimeout(typingTimeout);
+      socket.emit("stopTyping", { receiverId: selectedUserId });
+    }
 
     try {
       await sendMessage({
@@ -54,7 +83,7 @@ const MessageInput = () => {
             className="w-full input input-bordered rounded-lg input-sm sm:input-md"
             placeholder="Type a message..."
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleTextChange}
           />
           <input type="file" accept="image/*" className="hidden" id="image-upload" onChange={handleImageChange} />
           

@@ -10,6 +10,8 @@ export const useChatStore = create((set, get) => ({
   isUsersLoading: false,
   isMessagesLoading: false,
   isSearching: false,
+  isTyping: false,
+  unreadCounts: {},
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -88,43 +90,71 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.post(`/messages/send/${recipientId}`, messageData);
       const sentMsg = res.data.newMessage || res.data;
       
-      // Functional state update prevents UI lag
       set((state) => ({ messages: [...state.messages, sentMsg] }));
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to send message");
     }
   },
 
-  subscribeToMessages: () => {
+  setSelectedUser: (selectedUser) => {
+    const selectedUserId = selectedUser?._id || selectedUser?.id;
+    set((state) => ({
+      selectedUser,
+      isTyping: false,
+      unreadCounts: selectedUserId
+        ? { ...state.unreadCounts, [selectedUserId]: 0 }
+        : state.unreadCounts,
+    }));
+  },
+
+  subscribeToChatEvents: () => {
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
+    socket.off("userTyping");
+    socket.off("userStopTyping");
     socket.off("newMessage");
 
+    socket.on("userTyping", ({ senderId }) => {
+      const activeId = get().selectedUser?._id || get().selectedUser?.id;
+      if (activeId === senderId) set({ isTyping: true });
+    });
+
+    socket.on("userStopTyping", ({ senderId }) => {
+      const activeId = get().selectedUser?._id || get().selectedUser?.id;
+      if (activeId === senderId) set({ isTyping: false });
+    });
+
     socket.on("newMessage", (newMessage) => {
-      const { selectedUser } = get();
-      if (!selectedUser) return;
+      const { selectedUser, unreadCounts } = get();
+      const activeId = selectedUser?._id || selectedUser?.id;
+      const isFromSelectedUser = activeId && newMessage.senderId === activeId;
 
-      const selectedUserId = selectedUser._id || selectedUser.id;
-      const isMessageFromSelectedUser = newMessage.senderId === selectedUserId;
-
-      if (!isMessageFromSelectedUser) return;
-
-      // Functional updater ensures fresh state reading
-      set((state) => {
-        const exists = state.messages.some(
-          (m) => (m._id || m.id) === (newMessage._id || newMessage.id)
-        );
-        if (exists) return state;
-        return { messages: [...state.messages, newMessage] };
-      });
+      if (isFromSelectedUser) {
+        set((state) => {
+          const exists = state.messages.some(
+            (m) => (m._id || m.id) === (newMessage._id || newMessage.id)
+          );
+          if (exists) return state;
+          return { messages: [...state.messages, newMessage] };
+        });
+      } else {
+        const currentCount = unreadCounts[newMessage.senderId] || 0;
+        set({
+          unreadCounts: {
+            ...unreadCounts,
+            [newMessage.senderId]: currentCount + 1,
+          },
+        });
+      }
     });
   },
 
-  unsubscribeFromMessages: () => {
+  unsubscribeFromChatEvents: () => {
     const socket = useAuthStore.getState().socket;
-    if (socket) socket.off("newMessage");
+    if (!socket) return;
+    socket.off("userTyping");
+    socket.off("userStopTyping");
+    socket.off("newMessage");
   },
-
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
 }));

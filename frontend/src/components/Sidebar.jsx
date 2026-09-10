@@ -5,8 +5,16 @@ import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users, UserPlus } from "lucide-react";
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, searchAndAddUser, isSearching } =
-    useChatStore();
+  const { 
+    getUsers, 
+    users, 
+    selectedUser, 
+    setSelectedUser, 
+    isUsersLoading, 
+    searchAndAddUser, 
+    isSearching,
+    unreadCounts = {} 
+  } = useChatStore();
 
   const { onlineUsers } = useAuthStore();
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
@@ -91,6 +99,7 @@ const Sidebar = () => {
             const userId = user._id || user.id;
             const isSelected = currentSelectedId === userId;
             const isOnline = safeOnlineUsers.includes(userId);
+            const unreadCount = unreadCounts[userId] || 0;
 
             return (
               <button
@@ -98,31 +107,40 @@ const Sidebar = () => {
                 key={userId}
                 onClick={() => setSelectedUser(user)}
                 className={`
-                  w-full p-3 flex items-center gap-3
+                  w-full p-3 flex items-center justify-between
                   hover:bg-base-300 transition-colors cursor-pointer
                   ${isSelected ? "bg-base-300 ring-1 ring-base-300" : ""}
                 `}
               >
-                <div className="relative mx-auto lg:mx-0">
-                  <img
-                    src={user.profilePic || "/avatar.png"}
-                    alt={user.fullName}
-                    className="size-12 object-cover rounded-full"
-                  />
-                  {isOnline && (
-                    <span
-                      className="absolute bottom-0 right-0 size-3 bg-green-500 
-                      rounded-full ring-2 ring-zinc-900"
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="relative mx-auto lg:mx-0 shrink-0">
+                    <img
+                      src={user.profilePic || "/avatar.png"}
+                      alt={user.fullName}
+                      className="size-12 object-cover rounded-full"
                     />
-                  )}
-                </div>
+                    {isOnline && (
+                      <span
+                        className="absolute bottom-0 right-0 size-3 bg-green-500 
+                        rounded-full ring-2 ring-zinc-900"
+                      />
+                    )}
+                  </div>
 
-                <div className="hidden lg:block text-left min-w-0">
-                  <div className="font-medium truncate">{user.fullName}</div>
-                  <div className="text-sm text-zinc-400">
-                    {isOnline ? "Online" : "Offline"}
+                  <div className="hidden lg:block text-left min-w-0">
+                    <div className="font-medium truncate">{user.fullName}</div>
+                    <div className="text-sm text-zinc-400">
+                      {isOnline ? "Online" : "Offline"}
+                    </div>
                   </div>
                 </div>
+
+                {/* Unread Message Count Badge */}
+                {unreadCount > 0 && !isSelected && (
+                  <span className="bg-primary text-primary-content text-xs font-bold px-2 py-0.5 rounded-full shrink-0">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
             );
           })
