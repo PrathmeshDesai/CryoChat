@@ -30,11 +30,11 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
 if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "../../frontend/dist")));
-    
-    // Updated wildcard match for Express 5 compatibility
+    // path.resolve() cleanly targets the root 'frontend/dist' directory from anywhere
+    app.use(express.static(path.resolve(__dirname, "../../../frontend/dist")));
+
     app.get("*path", (req, res) => {
-        res.sendFile(path.join(__dirname, "../../frontend", "dist", "index.html"));
+        res.sendFile(path.resolve(__dirname, "../../../frontend/dist/index.html"));
     });
 }
 
