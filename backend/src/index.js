@@ -30,11 +30,11 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
 if (process.env.NODE_ENV === "production") {
-    // path.resolve() cleanly targets the root 'frontend/dist' directory from anywhere
-    app.use(express.static(path.resolve(__dirname, "../../../frontend/dist")));
+    // process.cwd() gets the root project folder on Render (/opt/render/project/src)
+    app.use(express.static(path.join(process.cwd(), "frontend/dist")));
 
     app.get("*path", (req, res) => {
-        res.sendFile(path.resolve(__dirname, "../../../frontend/dist/index.html"));
+        res.sendFile(path.join(process.cwd(), "frontend/dist/index.html"));
     });
 }
 
